@@ -6,9 +6,10 @@ from sklearn.impute import SimpleImputer
 from sklearn.preprocessing import StandardScaler, OneHotEncoder, RobustScaler
 from sklearn.compose import ColumnTransformer
 from sklearn.pipeline import Pipeline
-from sklearn.feature_selection import SelectKBest, f_regression
+from sklearn.feature_selection import SelectKBest, f_regression, SelectFromModel
+from sklearn.linear_model import Lasso
 
-def preprocess_data(file_name):
+def preprocess_data(file_name, n_features='auto', use_pca=False):
     # Build the correct path to the data file
     data_dir = 'data'
     file_path = os.path.join(data_dir, file_name)
@@ -41,15 +42,42 @@ def preprocess_data(file_name):
     numeric_features = ['area', 'bedrooms', 'bathrooms', 'stories', 'parking']
     data = remove_outliers(data, numeric_features)
     
-    # יצירת תכונות חדשות
+    # יצירת תכונות מורכבות יותר
+    # תכונות קיימות
     data['rooms_per_floor'] = data['bedrooms'] / data['stories']
     data['total_rooms'] = data['bedrooms'] + data['bathrooms']
-    data['has_premium_features'] = ((data['airconditioning'] == 'yes') & 
-                                  (data['hotwaterheating'] == 'yes')).astype(int)
+    data['area_per_room'] = data['area'] / data['total_rooms']
+    data['area_per_floor'] = data['area'] / data['stories']
     
-    # הפרדת משתנה המטרה
-    target = data['price']
-    features = data.drop('price', axis=1)
+    # טרנספורמציות לוגריתמיות
+    data['log_area'] = np.log1p(data['area'])
+    data['log_price'] = np.log1p(data['price'])  # המחיר גם
+    
+    # תכונות ריבועיות
+    data['area_squared'] = data['area'] ** 2
+    data['stories_squared'] = data['stories'] ** 2
+    
+    # אינטראקציות מורכבות
+    data['area_rooms_ratio'] = data['area'] / (data['bedrooms'] + data['bathrooms'])
+    data['luxury_score'] = ((data['airconditioning'] == 'yes').astype(int) + 
+                           (data['hotwaterheating'] == 'yes').astype(int) +
+                           (data['guestroom'] == 'yes').astype(int) +
+                           (data['basement'] == 'yes').astype(int))
+    
+    # אינטראקציות עם משתנים קטגוריים
+    data['premium_area'] = data['area'] * (data['prefarea'] == 'yes').astype(int)
+    
+    # הוספת אינטראקציות עם log_area
+    data['log_area_rooms'] = data['log_area'] * data['total_rooms']
+    data['log_area_stories'] = data['log_area'] * data['stories']
+    
+    # הוספת תכונות פשוטות יותר
+    data['area_per_bathroom'] = data['area'] / data['bathrooms']
+    data['rooms_ratio'] = data['bedrooms'] / data['bathrooms']
+    
+    # הפרדת משתנה המטרה (עכשיו לוגריתמי)
+    target = data['log_price']
+    features = data.drop(['price', 'log_price'], axis=1)
     
     # זיהוי סוגי עמודות
     numeric_features = features.select_dtypes(include=['int64', 'float64']).columns
@@ -57,7 +85,7 @@ def preprocess_data(file_name):
     
     # יצירת Pipeline לטיפול בנתונים
     numeric_transformer = Pipeline(steps=[
-        ('scaler', RobustScaler())  # רק נרמול, בלי בחירת תכונות כאן
+        ('scaler', StandardScaler())
     ])
     
     categorical_transformer = Pipeline(steps=[
@@ -84,15 +112,34 @@ def preprocess_data(file_name):
     feature_names = numeric_features_list + list(categorical_features_list)
     features_processed_df = pd.DataFrame(features_processed, columns=feature_names)
     
-    # בחירת תכונות אחרי העיבוד הראשוני
-    selector = SelectKBest(f_regression, k=5)
+    # בחירת תכונות עם מספר דינמי
+    if n_features == 'auto':
+        n_features = min(8, features_processed_df.shape[1])
+    
+    selector = SelectFromModel(
+        estimator=Lasso(alpha=0.01),
+        max_features=10
+    )
     features_selected = selector.fit_transform(features_processed_df, target)
     
-    # Apply PCA if needed (optional)
-    pca = PCA(n_components=0.95)  # Keep 95% of the variance
-    principal_components = pca.fit_transform(features_selected)
+    # הדפסת התכונות שנבחרו
+    selected_features = features_processed_df.columns[selector.get_support()].tolist()
+    print(f"\nSelected features: {selected_features}")
     
-    return principal_components, target
+    # במקום להדפיס scores, נדפיס את המקדמים של ה-Lasso
+    if hasattr(selector.estimator_, 'coef_'):
+        feature_importance = np.abs(selector.estimator_.coef_)
+        print(f"Feature importance (Lasso coefficients): {feature_importance[selector.get_support()]}")
+    
+    # PCA רק אם מבקשים
+    if use_pca:
+        pca = PCA(n_components=0.98)  # שומרים על 98% מהשונות
+        features_final = pca.fit_transform(features_selected)
+        print(f"Variance explained by PCA: {sum(pca.explained_variance_ratio_):.3f}")
+    else:
+        features_final = features_selected
+    
+    return features_final, target
 
 if __name__ == '__main__':
     features, target = preprocess_data('Housing.csv')
