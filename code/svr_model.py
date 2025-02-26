@@ -9,17 +9,17 @@ def svr_model(X, y):
     start_time = time.time()
     print("Starting SVR training...")
     
-    # חלוקת הנתונים
+    # Split the data into training and testing sets
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
     print("Data split completed")
     
-    # נרמול הנתונים
+    # Normalize the data
     scaler = StandardScaler()
     X_train_scaled = scaler.fit_transform(X_train)
     X_test_scaled = scaler.transform(X_test)
     print("Data scaling completed")
     
-    # נוותר על GridSearch ונשתמש במודל בסיסי
+    # Train a basic SVR model
     print("Training basic SVR model...")
     model = SVR(
         kernel='linear',

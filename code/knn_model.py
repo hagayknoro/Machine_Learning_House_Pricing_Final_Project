@@ -7,14 +7,15 @@ from sklearn.preprocessing import StandardScaler, RobustScaler
 import numpy as np
 
 def knn_model(X, y):
+    # Split the data into training and testing sets
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
     
-    # נרמול הנתונים
+    # Normalize the data
     scaler = RobustScaler()
     X_train_scaled = scaler.fit_transform(X_train)
     X_test_scaled = scaler.transform(X_test)
     
-    # הגדרת פרמטרים מורחבת
+    # Define parameter grid for hyperparameter tuning
     param_grid = {
         'n_neighbors': [3, 5, 7, 9, 11, 13, 15],
         'weights': ['uniform', 'distance'],

@@ -5,15 +5,15 @@ import numpy as np
 from sklearn.preprocessing import RobustScaler
 
 def linear_regression_model(X, y):
-    # Split the data
+    # Split the data into training and testing sets
     X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
     
-    # נרמול הנתונים
-    scaler = RobustScaler()  # שימוש ב-RobustScaler במקום StandardScaler
+    # Normalize the data
+    scaler = RobustScaler()  # Using RobustScaler to handle outliers
     X_train_scaled = scaler.fit_transform(X_train)
     X_test_scaled = scaler.transform(X_test)
     
-    # הגדרת מודלים עם פרמטרים מותאמים
+    # Define models with tuned parameters
     models = {
         'Lasso': LassoCV(
             cv=5, 
@@ -44,7 +44,7 @@ def linear_regression_model(X, y):
             best_model = model
             best_predictions = predictions
     
-    # חישוב מדדים (נחזיר לסקלה המקורית)
+    # Calculate metrics (return to original scale)
     mse = mean_squared_error(y_test, best_predictions)
     rmse = np.sqrt(mse)
     

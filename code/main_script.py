@@ -7,13 +7,13 @@ import numpy as np
 import time
 
 if __name__ == '__main__':
-    # עיבוד נתונים ללא PCA
+    # Data processing without PCA
     features, target = preprocess_data('Housing.csv', n_features=10, use_pca=False)
     
     print(f"\nTotal number of samples: {features.shape[0]}")
     print(f"Number of features: {features.shape[1]}")
     
-    # הרצת המודלים עם מדידת זמן
+    # Train models with timing
     print("\nTraining models...")
     
     start_time = time.time()
@@ -32,7 +32,7 @@ if __name__ == '__main__':
     knn_rmse, knn_r2 = knn_model(features, target)
     print(f"KNN training time: {time.time() - start_time:.2f} seconds")
     
-    # השוואת מודלים
+    # Model comparison
     print("\nModel Comparison:")
     print(f"Linear Regression: RMSE={np.exp(lr_rmse):.0f}, R²={lr_r2:.3f}")
     print(f"Decision Tree: RMSE={np.exp(dt_rmse):.0f}, R²={dt_r2:.3f}")
